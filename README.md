@@ -52,6 +52,19 @@ truthfulqa-bench run \
   --anthropic-budget 100
 ```
 
+If a paid pilot or full run is interrupted, rerun the same command with `--resume`.
+Resume mode validates the existing JSONL file against the requested provider,
+models, dataset rows, answer order, and correct-choice metadata before appending
+only the missing prompts:
+
+```bash
+truthfulqa-bench run \
+  --provider anthropic \
+  --models claude-opus-4-7 claude-sonnet-4-6 \
+  --anthropic-budget 100 \
+  --resume
+```
+
 OpenAI model IDs are intentionally configurable because latest aliases change:
 
 ```bash
@@ -77,5 +90,7 @@ truthfulqa-bench report --results results/full.jsonl
 - Default pilot size: 20 questions.
 - Default provider budget: `$100`.
 - Full runs require pilot-projected cost below 80% of the relevant provider cap.
+- Resume mode continues an interrupted JSONL result file only after validating it
+  matches the requested run.
 - API keys are required before any paid command starts.
 - Missing keys abort before API clients are created.

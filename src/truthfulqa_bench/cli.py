@@ -58,6 +58,7 @@ def add_run_args(parser: argparse.ArgumentParser, *, default_output: str) -> Non
     parser.add_argument("--output", type=Path, default=Path(default_output))
     parser.add_argument("--openai-budget", type=float, default=100.0)
     parser.add_argument("--anthropic-budget", type=float, default=100.0)
+    parser.add_argument("--resume", action="store_true", help="Continue an interrupted run from an existing JSONL file.")
 
 
 def cmd_prepare(args: argparse.Namespace) -> int:
@@ -80,6 +81,7 @@ def cmd_pilot(args: argparse.Namespace) -> int:
         output_path=args.output,
         projection_path=args.projection,
         budget_usd=budget_for(args),
+        resume=args.resume,
     )
     print_projection(projection)
     if not projection.passes:
@@ -95,7 +97,13 @@ def cmd_run(args: argparse.Namespace) -> int:
             f"Pilot projection was for {projection.provider}, but requested full run for {args.provider}."
         )
     models = resolve_models(args.provider, args.models)
-    results = run_benchmark(provider=args.provider, models=models, rows=rows, output_path=args.output)
+    results = run_benchmark(
+        provider=args.provider,
+        models=models,
+        rows=rows,
+        output_path=args.output,
+        resume=args.resume,
+    )
     print(json.dumps(summarize(results), indent=2, sort_keys=True))
     return 0
 
