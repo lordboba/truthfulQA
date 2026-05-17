@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "truthfulqa-bench"
+version = "0.1.0"
+description = "Budget-aware TruthfulQA binary multiple-choice benchmark runner"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic>=0.52.0",
+  "certifi>=2025.11.12",
+  "openai>=1.82.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.2.0",
+]
+
+[project.scripts]
+truthfulqa-bench = "truthfulqa_bench.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
