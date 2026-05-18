@@ -9,8 +9,12 @@ from typing import Iterable
 
 @dataclass(frozen=True)
 class BenchmarkResult:
+    condition_id: str
     provider: str
-    model: str
+    model_id: str
+    model_label: str
+    reasoning_effort: str | None
+    question_set_id: str
     row_id: int
     category: str
     order: str
@@ -47,12 +51,12 @@ def load_results(path: Path) -> list[BenchmarkResult]:
 
 
 def summarize(results: Iterable[BenchmarkResult]) -> dict[str, object]:
-    grouped: dict[tuple[str, str], list[BenchmarkResult]] = defaultdict(list)
+    grouped: dict[str, list[BenchmarkResult]] = defaultdict(list)
     for result in results:
-        grouped[(result.provider, result.model)].append(result)
+        grouped[result.condition_id].append(result)
 
     summaries: dict[str, object] = {}
-    for (provider, model), rows in sorted(grouped.items()):
+    for condition_id, rows in sorted(grouped.items()):
         valid = [row for row in rows if not row.is_invalid]
         correct = [row for row in valid if row.is_correct]
         by_row: dict[int, list[BenchmarkResult]] = defaultdict(list)
@@ -65,8 +69,13 @@ def summarize(results: Iterable[BenchmarkResult]) -> dict[str, object]:
             and all(not attempt.is_invalid for attempt in attempts)
             and attempts[0].is_correct != attempts[1].is_correct
         )
-        key = f"{provider}/{model}"
-        summaries[key] = {
+        first = rows[0]
+        summaries[condition_id] = {
+            "provider": first.provider,
+            "model_id": first.model_id,
+            "model_label": first.model_label,
+            "reasoning_effort": first.reasoning_effort,
+            "question_set_id": first.question_set_id,
             "requests": len(rows),
             "valid_requests": len(valid),
             "accuracy": len(correct) / len(valid) if valid else None,

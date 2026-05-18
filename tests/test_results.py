@@ -3,8 +3,12 @@ from truthfulqa_bench.results import BenchmarkResult, summarize
 
 def make_result(row_id: int, order: str, parsed: str | None, correct: str) -> BenchmarkResult:
     return BenchmarkResult(
+        condition_id="openai_gpt-5.5_medium",
         provider="openai",
-        model="gpt-5.5",
+        model_id="gpt-5.5",
+        model_label="GPT-5.5 (medium)",
+        reasoning_effort="medium",
+        question_set_id="test-set",
         row_id=row_id,
         category="Health",
         order=order,
@@ -29,7 +33,7 @@ def test_summarize_reports_accuracy_invalids_and_cost():
         ]
     )
 
-    model_summary = summary["openai/gpt-5.5"]
+    model_summary = summary["openai_gpt-5.5_medium"]
     assert model_summary["requests"] == 3
     assert model_summary["valid_requests"] == 2
     assert model_summary["accuracy"] == 1.0
@@ -47,4 +51,4 @@ def test_summarize_order_sensitivity_uses_correctness_not_literal_letter():
         ]
     )
 
-    assert summary["openai/gpt-5.5"]["order_sensitive_rows"] == 1
+    assert summary["openai_gpt-5.5_medium"]["order_sensitive_rows"] == 1

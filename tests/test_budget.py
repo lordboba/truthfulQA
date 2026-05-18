@@ -4,8 +4,12 @@ from truthfulqa_bench.results import BenchmarkResult
 
 def result(cost: float) -> BenchmarkResult:
     return BenchmarkResult(
+        condition_id="anthropic_claude-opus-4-7",
         provider="anthropic",
-        model="claude-opus-4-7",
+        model_id="claude-opus-4-7",
+        model_label="Claude Opus 4.7",
+        reasoning_effort=None,
+        question_set_id="test-set",
         row_id=0,
         category="Misconceptions",
         order="correct_first",

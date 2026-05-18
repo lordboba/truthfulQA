@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from .config import FALLBACK_PRICING_BY_PROVIDER, PRICING_BY_PROVIDER_MODEL, Pricing
+from .config import PRICING_BY_PROVIDER_MODEL, Pricing
 
 
 def pricing_for(provider: str, model: str) -> Pricing:
     normalized_provider = provider.lower()
-    return PRICING_BY_PROVIDER_MODEL.get(
-        (normalized_provider, model),
-        FALLBACK_PRICING_BY_PROVIDER[normalized_provider],
-    )
+    pricing = PRICING_BY_PROVIDER_MODEL.get((normalized_provider, model))
+    if pricing is None:
+        raise ValueError(f"No pricing configured for {normalized_provider}/{model}.")
+    return pricing
 
 
 def estimate_cost(provider: str, model: str, input_tokens: int, output_tokens: int) -> float:
