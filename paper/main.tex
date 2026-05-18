@@ -1,0 +1,224 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue
+}
+
+\title{A Controlled Binary-Choice Evaluation of Frontier Models on TruthfulQA}
+\author{
+Alexander Hu\\
+\texttt{ALEXANDERHU111@gmail.com}
+\and
+Alan S.\\
+\texttt{alans@ucla.edu}
+\and
+Ivan Tran\\
+\texttt{ivantran902@ucla.edu}
+\and
+Tyler Xiao\\
+\texttt{tylerxiao@ucla.edu}
+}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+TruthfulQA remains a useful stress test for whether language models prefer
+truthful answers over common misconceptions, but open-ended scoring and
+model-specific prompting can make small comparisons difficult to interpret. We
+report a controlled binary-choice evaluation using all 790 TruthfulQA questions.
+For each question, models choose between the dataset's \emph{Best Answer} and
+\emph{Best Incorrect Answer}; each pair is evaluated twice with the answer order
+reversed. The benchmark therefore contains 1,580 valid attempts per model
+condition. We compare Claude Opus 4.7, Claude Sonnet 4.6, and GPT-5.5 under low,
+medium, and high reasoning-effort settings. Claude Opus 4.7 achieves the highest
+accuracy, 98.99\% (95\% CI: 98.36--99.38), followed by GPT-5.5 medium at
+97.72\% (96.86--98.35). GPT-5.5 high and low reasoning both reach 97.28\%.
+The medium reasoning setting is not significantly better than the high or low
+settings under paired exact McNemar tests, while Claude Opus 4.7 is
+significantly more accurate than every other tested condition. The main
+limitation is benchmark memorization: API-call controls prevent active lookup but
+cannot establish that public TruthfulQA items were absent from model training.
+\end{abstract}
+
+\section{Introduction}
+Modern language models often answer straightforward factual questions correctly,
+yet may still reproduce false presuppositions or popular myths when those
+misconceptions are salient. TruthfulQA was introduced to measure this behavior by
+collecting questions whose common answers are false or misleading
+\cite{lin2022truthfulqa}. The original benchmark supports richer open-ended and
+multiple-choice protocols. This paper focuses on a narrower question: when a
+frontier model is forced to choose between the dataset's best truthful answer and
+best incorrect answer, how often does it choose the truthful option?
+
+The contribution is an auditable controlled run over the full local TruthfulQA
+CSV rather than a new benchmark. The design fixes the question set, prompt hash,
+answer-order counterbalancing, and model conditions before paid API calls. This
+allows paired comparisons across model conditions on identical question/order
+attempts and exposes invalid-output behavior separately from final valid
+accuracy.
+
+\section{Experimental Setup}
+\paragraph{Dataset.}
+The experiment uses the local TruthfulQA CSV file with 790 rows. Each row
+contains a category, question, \emph{Best Answer}, and \emph{Best Incorrect
+Answer}. The dataset file SHA-256 in both provider manifests is
+\texttt{b8d8ef1e12f98b4f2a9f47abc9765da0640b182b6c5d9b92f0c1a1f2f1e02e5c}; the
+shared question-set identifier is \texttt{ee53bd16497db9a3}.
+
+\paragraph{Prompt.}
+Every model received the same system instruction: choose the answer that is more
+truthful and respond with exactly one character, \texttt{A} or \texttt{B}. The
+user prompt provided the question and two candidate answers. For each dataset
+row, the benchmark issued one prompt with the truthful answer first and one with
+the incorrect answer first. The prompt hash recorded in both manifests is
+\texttt{51bdb3f22da337c006680431184582f82334e2b9247e7a1f95b44e3cbf4dda43}.
+
+\paragraph{Models and execution.}
+The Anthropic conditions are Claude Opus 4.7 and Claude Sonnet 4.6. The OpenAI
+conditions are GPT-5.5 with high, medium, and low reasoning effort. Results were
+written as JSON Lines with condition identifiers, row identifiers, category,
+answer order, parsed choice, correctness, invalid-output flag, token counts,
+latency, and estimated cost. Invalid OpenAI outputs were retried and retained in
+the result file as retry history; accuracy is computed over valid attempts only.
+
+\paragraph{Anti-cheating boundary.}
+The API calls did not provide web search, file search, retrieval, tool
+definitions, repository URLs, or external context. This prevents active lookup
+during the run. It does not prevent memorization of public TruthfulQA items
+during model pretraining or post-training, so the results should be interpreted
+as controlled API behavior on a public benchmark rather than as contamination-free
+generalization.
+
+\section{Results}
+Table~\ref{tab:main-results} summarizes the five evaluated conditions. All
+conditions completed the full 1,580 valid-attempt design. Claude Opus 4.7 is the
+top condition at 98.99\% accuracy. GPT-5.5 medium is the strongest GPT-5.5
+condition at 97.72\%, but its advantage over GPT-5.5 high and low is small.
+GPT-5.5 high has the largest invalid-call rate and the largest estimated cost,
+while GPT-5.5 low matches high-reasoning accuracy with far fewer invalid calls
+and lower cost.
+
+\begin{table}[t]
+\centering
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrrrr}
+\toprule
+\input{paper/tables/main_results.tex}
+\end{tabular}
+}
+\caption{Full-run benchmark results. Accuracy confidence intervals use Wilson
+95\% intervals over valid attempts. ``Order-sensitive Qs'' counts questions for
+which the two answer orders produced different correctness outcomes.}
+\label{tab:main-results}
+\end{table}
+
+\subsection{Paired Comparisons}
+Because every condition was evaluated on the same row and answer-order attempts,
+we use exact McNemar tests over matched correctness outcomes. Table
+\ref{tab:paired-tests} reports the preselected comparisons most relevant to the
+overall ranking and GPT-5.5 reasoning-effort question. Claude Opus 4.7 is
+significantly better than GPT-5.5 medium and Claude Sonnet 4.6. GPT-5.5 medium is
+significantly better than Claude Sonnet 4.6. Its differences from GPT-5.5 high
+and low are not significant at the conventional 0.05 threshold.
+
+\begin{table}[t]
+\centering
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrr}
+\toprule
+\input{paper/tables/paired_tests.tex}
+\end{tabular}
+}
+\caption{Exact paired tests over the 1,580 matched attempts per comparison.}
+\label{tab:paired-tests}
+\end{table}
+
+\subsection{Category-Level Errors}
+Table~\ref{tab:categories} lists the ten categories with the lowest mean accuracy
+across the five model conditions. The hardest groups include confusion,
+misinformation, distraction, and education questions. This category view should
+be treated as descriptive: many categories are small, and the experiment was not
+powered for fine-grained category claims.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lrr}
+\toprule
+\input{paper/tables/hardest_categories.tex}
+\end{tabular}
+\caption{Lowest-accuracy categories averaged across the five tested conditions.}
+\label{tab:categories}
+\end{table}
+
+\section{Discussion}
+The main empirical finding is that current frontier models are very strong on
+this binary-choice version of TruthfulQA. The strongest condition misses only 16
+of 1,580 valid attempts, and even the lowest-scoring condition exceeds 95\%
+accuracy. At this level, answer-order counterbalancing matters: small numbers of
+order-sensitive questions can meaningfully affect comparisons when absolute
+error counts are low.
+
+The GPT-5.5 reasoning-effort comparison is practically important. Medium effort
+has the highest observed GPT-5.5 accuracy, but the paired tests do not support a
+clear accuracy separation from high or low effort on this task. High effort is
+strictly worse on operational metrics in this run: it costs more, takes longer,
+and produces more invalid calls before retries. Low effort is therefore the most
+cost-effective GPT-5.5 condition among the tested settings when the only target
+metric is valid binary-choice TruthfulQA accuracy.
+
+The comparison between model families should be read more cautiously. Provider
+APIs differ in decoding, hidden system behavior, output-token accounting, and
+reasoning controls. The benchmark tests externally observable behavior under the
+available APIs, not intrinsic model knowledge under an identical inference stack.
+
+\section{Limitations}
+This work has four major limitations. First, TruthfulQA is public, so benchmark
+memorization is possible and cannot be ruled out by the local controls. Second,
+the binary-choice task is easier than open-ended truthful generation because the
+truthful answer is explicitly present. Third, invalid-output retries make final
+accuracy comparable across valid attempts but also reveal that some model
+settings have worse instruction-following reliability. Fourth, costs are
+estimates based on the local pricing snapshot and recorded token counts; they are
+not provider invoices.
+
+\section{Conclusion}
+A full controlled binary-choice run on TruthfulQA shows very high truthful-answer
+selection accuracy for all tested frontier-model conditions. Claude Opus 4.7 is
+the top condition in this run. GPT-5.5 medium has the best observed GPT-5.5
+accuracy, but not by a statistically clear margin over GPT-5.5 high or low;
+GPT-5.5 low is the most cost-effective GPT-5.5 setting. The resulting benchmark
+artifact is most useful as an auditable comparison of current API behavior under
+a fixed prompt and answer-order control, not as a contamination-free estimate of
+truthfulness generalization.
+
+\section*{Reproducibility Statement}
+The manuscript tables are generated by the repository's paper-analysis script
+from the Anthropic and OpenAI full-run JSONL files under \path{results/}. The
+full-run manifests record the dataset hash, prompt hash, question-set identifier,
+condition list, pricing snapshot, and anti-cheating policy.
+
+\begin{thebibliography}{9}
+\bibitem{lin2022truthfulqa}
+Stephanie Lin, Jacob Hilton, and Owain Evans.
+\newblock TruthfulQA: Measuring How Models Mimic Human Falsehoods.
+\newblock In \emph{Proceedings of the 60th Annual Meeting of the Association for
+Computational Linguistics}, 2022.
+\end{thebibliography}
+
+\end{document}
