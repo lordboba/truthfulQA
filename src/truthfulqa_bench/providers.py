@@ -11,6 +11,14 @@ from time import monotonic
 from typing import Protocol
 
 from .conditions import RunCondition
+from .config import (
+    DEFAULT_LOCAL_BASE_URL,
+    DEFAULT_LOCAL_MAX_OUTPUT_TOKENS,
+    DEFAULT_LOCAL_TIMEOUT_SECONDS,
+    LOCAL_BASE_URL_ENV,
+    LOCAL_MAX_OUTPUT_TOKENS_ENV,
+    LOCAL_TIMEOUT_SECONDS_ENV,
+)
 from .costs import estimate_cost
 from .prompting import SYSTEM_PROMPT, BinaryPrompt, parse_choice
 from .results import BenchmarkResult
@@ -46,6 +54,38 @@ def require_api_key(provider: str) -> str:
     if not api_key:
         raise RuntimeError(f"{env_name} is required before running paid {provider} benchmark calls.")
     return api_key
+
+
+def local_base_url(override: str | None = None) -> str:
+    if override:
+        return override.rstrip("/")
+    return os.environ.get(LOCAL_BASE_URL_ENV, DEFAULT_LOCAL_BASE_URL).rstrip("/")
+
+
+def local_max_output_tokens() -> int:
+    raw = os.environ.get(LOCAL_MAX_OUTPUT_TOKENS_ENV)
+    if raw is None:
+        return DEFAULT_LOCAL_MAX_OUTPUT_TOKENS
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{LOCAL_MAX_OUTPUT_TOKENS_ENV} must be an integer.") from exc
+    if value <= 0:
+        raise RuntimeError(f"{LOCAL_MAX_OUTPUT_TOKENS_ENV} must be positive.")
+    return value
+
+
+def local_timeout_seconds() -> float:
+    raw = os.environ.get(LOCAL_TIMEOUT_SECONDS_ENV)
+    if raw is None:
+        return DEFAULT_LOCAL_TIMEOUT_SECONDS
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{LOCAL_TIMEOUT_SECONDS_ENV} must be a number.") from exc
+    if value <= 0:
+        raise RuntimeError(f"{LOCAL_TIMEOUT_SECONDS_ENV} must be positive.")
+    return value
 
 
 class AnthropicClient:
@@ -126,11 +166,67 @@ class OpenAIClient:
             cls._last_request_started_at = monotonic()
 
 
+class LocalClient:
+    provider = "local"
+
+    def __init__(
+        self,
+        condition: RunCondition,
+        question_set_id: str,
+        base_url: str | None = None,
+        max_output_tokens: int | None = None,
+        timeout_seconds: float | None = None,
+    ):
+        from openai import OpenAI
+
+        self.condition = condition
+        self.question_set_id = question_set_id
+        self.base_url = local_base_url(base_url)
+        self.max_output_tokens = max_output_tokens or local_max_output_tokens()
+        self.timeout_seconds = timeout_seconds or local_timeout_seconds()
+        self._client = OpenAI(
+            base_url=self.base_url,
+            api_key="local",
+            timeout=self.timeout_seconds,
+        )
+
+    def complete_choice(self, prompt: BinaryPrompt, category: str) -> BenchmarkResult:
+        start = monotonic()
+        response = call_with_retries(
+            lambda: self._client.chat.completions.create(
+                model=self.condition.model_id,
+                max_tokens=self.max_output_tokens,
+                temperature=0,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt.prompt},
+                ],
+            )
+        )
+        latency = monotonic() - start
+        choice = response.choices[0]
+        raw_output = choice.message.content or ""
+        usage = response.usage
+        input_tokens = getattr(usage, "prompt_tokens", 0) or 0
+        output_tokens = getattr(usage, "completion_tokens", 0) or 0
+        return _to_result(
+            self.condition,
+            self.question_set_id,
+            prompt,
+            category,
+            raw_output,
+            Usage(input_tokens=input_tokens, output_tokens=output_tokens),
+            latency,
+        )
+
+
 def make_client(condition: RunCondition, question_set_id: str) -> ProviderClient:
     if condition.provider == "anthropic":
         return AnthropicClient(condition, question_set_id)
     if condition.provider == "openai":
         return OpenAIClient(condition, question_set_id)
+    if condition.provider == "local":
+        return LocalClient(condition, question_set_id)
     raise ValueError(f"Unsupported provider: {condition.provider}")
 
 
@@ -160,7 +256,7 @@ def openai_max_output_tokens() -> int:
     return value
 
 
-def validate_model_access(conditions: list[RunCondition]) -> None:
+def validate_model_access(conditions: list[RunCondition], *, local_base_url_override: str | None = None) -> None:
     by_provider: dict[str, set[str]] = {}
     for condition in conditions:
         by_provider.setdefault(condition.provider, set()).add(condition.model_id)
@@ -187,6 +283,31 @@ def validate_model_access(conditions: list[RunCondition]) -> None:
             )
         for model_id in sorted(by_provider["anthropic"]):
             retrieve(model_id)
+
+    if "local" in by_provider:
+        validate_local_models(sorted(by_provider["local"]), base_url=local_base_url_override)
+
+
+def validate_local_models(model_ids: list[str], *, base_url: str | None = None) -> None:
+    from openai import OpenAI
+
+    resolved_base_url = local_base_url(base_url)
+    client = OpenAI(base_url=resolved_base_url, api_key="local", timeout=local_timeout_seconds())
+    try:
+        listing = client.models.list()
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not reach local model server at {resolved_base_url}. "
+            "Start LM Studio (or another OpenAI-compatible server) and load the requested models, "
+            f"or rerun with --skip-preflight. Underlying error: {api_error_summary(exc)}"
+        ) from exc
+    available = {entry.id for entry in getattr(listing, "data", [])}
+    missing = [model_id for model_id in model_ids if model_id not in available]
+    if missing:
+        raise RuntimeError(
+            f"Local server at {resolved_base_url} did not advertise the requested model(s): "
+            f"{', '.join(missing)}. Available: {', '.join(sorted(available)) or '(none)'}."
+        )
 
 
 def call_with_retries(call: Callable[[], object], *, before_attempt: Callable[[], None] | None = None) -> object:

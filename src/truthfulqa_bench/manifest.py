@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .conditions import RunCondition
-from .config import PRICING_BY_PROVIDER_MODEL
+from .costs import pricing_for
 from .dataset import TruthfulQARow
 from .prompting import SYSTEM_PROMPT
 
@@ -68,12 +68,7 @@ def build_manifest(
 def pricing_snapshot(conditions: list[RunCondition]) -> dict[str, dict[str, float]]:
     snapshot: dict[str, dict[str, float]] = {}
     for condition in conditions:
-        pricing = PRICING_BY_PROVIDER_MODEL.get((condition.provider, condition.model_id))
-        if pricing is None:
-            raise ValueError(
-                f"No pricing configured for {condition.provider}/{condition.model_id}. "
-                "Refusing to run with unknown cost controls."
-            )
+        pricing = pricing_for(condition.provider, condition.model_id)
         snapshot[condition.condition_id] = asdict(pricing)
     return snapshot
 
