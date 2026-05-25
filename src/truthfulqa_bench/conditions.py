@@ -45,6 +45,11 @@ def default_conditions(provider: str) -> list[RunCondition]:
                 model_label="Claude Sonnet 4.6",
             ),
         ]
+    if provider == "local":
+        raise ValueError(
+            "Provider 'local' has no default models. Pass --models <id> [<id> ...] with the "
+            "model identifiers loaded in your local server (e.g. LM Studio)."
+        )
     raise ValueError(f"Unsupported provider: {provider}")
 
 
@@ -53,10 +58,15 @@ def model_conditions(provider: str, models: list[str] | None) -> list[RunConditi
         return default_conditions(provider)
     return [
         RunCondition(
-            condition_id=f"{provider}_{model}",
+            condition_id=condition_id_for(provider, model),
             provider=provider,
             model_id=model,
             model_label=model,
         )
         for model in models
     ]
+
+
+def condition_id_for(provider: str, model: str) -> str:
+    safe_model = model.replace("/", "_").replace(":", "_")
+    return f"{provider}_{safe_model}"

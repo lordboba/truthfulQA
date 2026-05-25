@@ -7,9 +7,11 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
 from typing import Iterator
 
+from collections import Counter
+
 from .budget import BudgetProjection, load_projection, project_budget, write_projection
 from .conditions import RunCondition
-from .config import DEFAULT_PILOT_PROJECTION
+from .config import DEFAULT_LOCAL_MAX_INVALID_RETRIES_PER_ATTEMPT, DEFAULT_PILOT_PROJECTION
 from .dataset import TruthfulQARow
 from .prompting import BinaryPrompt, build_two_order_prompts
 from .providers import make_client
@@ -76,10 +78,22 @@ def run_benchmark_locked(
         else []
     )
     completed = {attempt_key(result) for result in results if not result.is_invalid}
+    invalid_counts: Counter[AttemptKey] = Counter(
+        attempt_key(result) for result in results if result.is_invalid
+    )
+    max_invalid_retries = max_invalid_retries_for(provider)
     spent = sum(result.estimated_cost_usd for result in results if result.provider == provider)
 
     while True:
-        pending = list(iter_pending_attempts(rows=rows, conditions=conditions, completed=completed))
+        pending = list(
+            iter_pending_attempts(
+                rows=rows,
+                conditions=conditions,
+                completed=completed,
+                invalid_counts=invalid_counts,
+                max_invalid_retries=max_invalid_retries,
+            )
+        )
         if not pending:
             return results
         if max_workers == 1:
@@ -92,6 +106,7 @@ def run_benchmark_locked(
                 request_cost_reserve_usd=request_cost_reserve_usd,
                 results=results,
                 completed=completed,
+                invalid_counts=invalid_counts,
                 initial_spent=spent,
             )
         else:
@@ -104,6 +119,7 @@ def run_benchmark_locked(
                 request_cost_reserve_usd=request_cost_reserve_usd,
                 results=results,
                 completed=completed,
+                invalid_counts=invalid_counts,
                 initial_spent=spent,
                 max_workers=max_workers,
             )
@@ -119,6 +135,7 @@ def run_benchmark_sequential(
     request_cost_reserve_usd: float,
     results: list[BenchmarkResult],
     completed: set[AttemptKey],
+    invalid_counts: Counter[AttemptKey],
     initial_spent: float,
 ) -> float:
     spent = initial_spent
@@ -142,6 +159,7 @@ def run_benchmark_sequential(
                 output_path=output_path,
                 results=results,
                 completed=completed,
+                invalid_counts=invalid_counts,
                 result=result,
                 budget_usd=budget_usd,
             )
@@ -178,6 +196,7 @@ def run_benchmark_parallel(
     request_cost_reserve_usd: float,
     results: list[BenchmarkResult],
     completed: set[AttemptKey],
+    invalid_counts: Counter[AttemptKey],
     initial_spent: float,
     max_workers: int,
 ) -> float:
@@ -225,6 +244,7 @@ def run_benchmark_parallel(
                     output_path=output_path,
                     results=results,
                     completed=completed,
+                    invalid_counts=invalid_counts,
                     result=result,
                     budget_usd=budget_usd,
                 )
@@ -242,7 +262,7 @@ def assert_budget_allows_request(
     request_cost_reserve_usd: float,
     in_flight_requests: int,
 ) -> None:
-    if budget_usd is None:
+    if provider == "local" or budget_usd is None:
         return
     reserved = request_cost_reserve_usd * (in_flight_requests + 1)
     if spent + reserved > budget_usd:
@@ -259,15 +279,21 @@ def append_completed_result(
     output_path: Path,
     results: list[BenchmarkResult],
     completed: set[AttemptKey],
+    invalid_counts: Counter[AttemptKey],
     result: BenchmarkResult,
     budget_usd: float | None,
 ) -> None:
     append_result(output_path, result)
     results.append(result)
-    if not result.is_invalid:
-        completed.add(attempt_key(result))
+    key = attempt_key(result)
+    if result.is_invalid:
+        invalid_counts[key] += 1
+    else:
+        completed.add(key)
+    if provider == "local" or budget_usd is None:
+        return
     spent = sum(row.estimated_cost_usd for row in results if row.provider == provider)
-    if budget_usd is not None and spent > budget_usd:
+    if spent > budget_usd:
         raise RuntimeError(
             f"{provider} budget exceeded after a completed API call: estimated spend "
             f"${spent:.4f} is above ${budget_usd:.2f}. Increase request reserve before rerunning."
@@ -279,13 +305,28 @@ def iter_pending_attempts(
     rows: list[TruthfulQARow],
     conditions: list[RunCondition],
     completed: set[AttemptKey],
+    invalid_counts: Counter[AttemptKey] | None = None,
+    max_invalid_retries: int | None = None,
 ):
     for row in rows:
         for prompt in build_two_order_prompts(row):
             for condition in conditions:
                 key = (condition.condition_id, row.row_id, prompt.order)
-                if key not in completed:
-                    yield row, prompt, condition
+                if key in completed:
+                    continue
+                if (
+                    max_invalid_retries is not None
+                    and invalid_counts is not None
+                    and invalid_counts.get(key, 0) >= max_invalid_retries
+                ):
+                    continue
+                yield row, prompt, condition
+
+
+def max_invalid_retries_for(provider: str) -> int | None:
+    if provider == "local":
+        return DEFAULT_LOCAL_MAX_INVALID_RETRIES_PER_ATTEMPT
+    return None
 
 
 def run_pilot(
