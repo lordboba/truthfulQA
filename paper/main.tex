@@ -1,146 +1,197 @@
 \documentclass[11pt]{article}
+\makeatletter
+\def\input@path{{paper/}}
+\makeatother
 
-\usepackage[margin=1in]{geometry}
+% Change "review" to "final" to generate the final (sometimes called camera-ready) version.
+% Change to "preprint" to generate a non-anonymous version with page numbers.
+\usepackage[final]{acl}
 \usepackage{booktabs}
-\usepackage{graphicx}
-\usepackage{microtype}
-\usepackage{amsmath}
-\usepackage{hyperref}
-\usepackage{xcolor}
 
-\hypersetup{
-  colorlinks=true,
-  linkcolor=blue,
-  citecolor=blue,
-  urlcolor=blue
-}
+% Standard package includes
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{ifthen}
+
+% For proper rendering and hyphenation of words containing Latin characters (including in bib files)
+\usepackage[T1]{fontenc}
+% For Vietnamese characters
+% \usepackage[T5]{fontenc}
+% See https://www.latex-project.org/help/documentation/encguide.pdf for other character sets
+
+% This assumes your files are encoded as UTF8
+\usepackage[utf8]{inputenc}
+
+% This is not strictly necessary, and may be commented out,
+% but it will improve the layout of the manuscript,
+% and will typically save some space.
+\usepackage{microtype}
+
+% This is also not strictly necessary, and may be commented out.
+% However, it will improve the aesthetics of text in
+% the typewriter font.
+\usepackage{inconsolata}
+
+%Including images in your LaTeX document requires adding
+%additional package(s)
+\usepackage{graphicx}
+
+% If the title and author information does not fit in the area allocated, uncomment the following
+%
+%\setlength\titlebox{<dim>}
+%
+% and set <dim> to something 5cm or larger.
 
 \title{A Binary-Choice Evaluation of Modern Language Models on TruthfulQA}
-\author{
-Alexander Hu\\
-\texttt{alexanderhu77@ucla.edu}
-\and
-Alan Song\\
-\texttt{alans@ucla.edu}
-\and
-Ivan Tran\\
-\texttt{ivantran902@ucla.edu}
-\and
-Tyler Xiao\\
-\texttt{tylerxiao@ucla.edu}
-}
-\date{}
+
+
+% Author information can be set in various styles:
+% For several authors from the same institution:
+% \author{Author 1 \and ... \and Author n \\
+%         Address line \\ ... \\ Address line}
+% if the names do not fit well on one line use
+%         Author 1 \\ {\bf Author 2} \\ ... \\ {\bf Author n} \\
+% For authors from different institutions:
+% \author{Author 1 \\ Address line \\  ... \\ Address line
+%         \And  ... \And
+%         Author n \\ Address line \\ ... \\ Address line}
+% To start a separate ``row'' of authors use \AND, as in
+% \author{Author 1 \\ Address line \\  ... \\ Address line
+%         \AND
+%         Author 2 \\ Address line \\ ... \\ Address line \And
+%         Author 3 \\ Address line \\ ... \\ Address line}
+
+\author{Alexander Hu \\
+    UCLA \\ \texttt{alexanderhu77@ucla.edu} \\\And
+    Alan Song \\
+    UCLA \\ \texttt{alans@ucla.edu} \\\And
+    Ivan Tran \\
+    UCLA \\ \texttt{ivantran902@ucla.edu} \\\And
+    Tyler Xiao \\
+    UCLA \\ \texttt{tylerxiao@ucla.edu} \\}
+    
+
+%\author{
+%  \textbf{First Author\textsuperscript{1}},
+%  \textbf{Second Author\textsuperscript{1,2}},
+%  \textbf{Third T. Author\textsuperscript{1}},
+%  \textbf{Fourth Author\textsuperscript{1}},
+%\\
+%  \textbf{Fifth Author\textsuperscript{1,2}},
+%  \textbf{Sixth Author\textsuperscript{1}},
+%  \textbf{Seventh Author\textsuperscript{1}},
+%  \textbf{Eighth Author \textsuperscript{1,2,3,4}},
+%\\
+%  \textbf{Ninth Author\textsuperscript{1}},
+%  \textbf{Tenth Author\textsuperscript{1}},
+%  \textbf{Eleventh E. Author\textsuperscript{1,2,3,4,5}},
+%  \textbf{Twelfth Author\textsuperscript{1}},
+%\\
+%  \textbf{Thirteenth Author\textsuperscript{3}},
+%  \textbf{Fourteenth F. Author\textsuperscript{2,4}},
+%  \textbf{Fifteenth Author\textsuperscript{1}},
+%  \textbf{Sixteenth Author\textsuperscript{1}},
+%\\
+%  \textbf{Seventeenth S. Author\textsuperscript{4,5}},
+%  \textbf{Eighteenth Author\textsuperscript{3,4}},
+%  \textbf{Nineteenth N. Author\textsuperscript{2,5}},
+%  \textbf{Twentieth Author\textsuperscript{1}}
+%\\
+%\\
+%  \textsuperscript{1}Affiliation 1,
+%  \textsuperscript{2}Affiliation 2,
+%  \textsuperscript{3}Affiliation 3,
+%  \textsuperscript{4}Affiliation 4,
+%  \textsuperscript{5}Affiliation 5
+%\\
+%  \small{
+%    \textbf{Correspondence:} \href{mailto:email@domain}{email@domain}
+%  }
+%}
 
 \begin{document}
 \maketitle
-
 \begin{abstract}
-TruthfulQA remains a useful stress test for whether language models prefer
-truthful answers over common misconceptions, but open-ended scoring and
-model-specific prompting can make small comparisons difficult to interpret. We
-report a controlled binary-choice evaluation using all 790 TruthfulQA questions.
+TruthfulQA is a well-known test for whether language models choose truthful answers over common misconceptions, but its original format in open-ended questions makes it hard to compare models against each other.  We ran a binary-choice
+evaluation on all 790 TruthfulQA questions.
 For each question, models choose between the dataset's \emph{Best Answer} and
-\emph{Best Incorrect Answer}; each pair is evaluated twice with the answer order
-reversed. The benchmark therefore contains 1,580 attempts per model condition
-before any unrecovered invalid outputs are excluded. We compare Claude Opus 4.7,
-Claude Sonnet 4.6, GPT-5.5 under low, medium, and high reasoning-effort settings,
-and four open-source local models served through LM Studio: Gemma 4 E2B, Gemma 4
-E4B, GPT-OSS-20B, and Gemma 3 27B. Claude Opus 4.7 achieves the highest
-accuracy, 98.99\% (95\% CI: 98.36--99.38), followed by GPT-5.5 medium at
-97.72\% (96.86--98.35). Among local models, GPT-OSS-20B leads at 87.28\%
-(85.54--88.83), followed by Gemma 4 E4B at 84.98\% (83.13--86.66), Gemma 3 27B
-at 84.24\% (82.36--85.95), and Gemma 4 E2B at 77.03\% (74.89--79.04). The medium
-reasoning setting is not significantly better than GPT-5.5 high or low under
-paired exact McNemar tests, while Claude Opus 4.7 is significantly more accurate
-than every other cloud condition. The main limitation is benchmark memorization:
-our controls prevent active lookup but cannot establish that public TruthfulQA
-items were absent from model training.
+\emph{Best Incorrect Answer} with each pair evaluated twice with the answer order
+reversed. We compare Claude Opus 4.7, Claude Sonnet 4.6, and GPT-5.5 under low, medium,
+and high reasoning-effort settings, and additionally report results for four
+open-source local models (Gemma 4 E2B, Gemma 4 E4B, GPT-OSS-20B, Gemma 3 27B)
+served via LM Studio. Claude Opus 4.7 achieves the highest accuracy of 98.99\% (95\% Confidence Interval: 98.36--99.38), followed by GPT-5.5 medium at
+97.72\% (96.86--98.35). GPT-5.5 high and low reasoning both reach 97.28\%. Among the local models, GPT-OSS-20B leads at 87.28\% (85.54--88.83), followed by Gemma 4 E4B at 84.98\% (83.13--86.66), Gemma 3 27B at 84.24\% (82.36--85.95), and
+Gemma 4 E2B at 77.03\% (74.89--79.04).
+Using standard statistical tests, medium reasoning effort showed no clear accuracy advantage over high or low effort for GPT-5.5, while Claude Opus 4.7 was statistically the most accurate model overall. The main limitation is that these
+models may have already seen TruthfulQA questions during training. We attempted to mitigate this problem by preventing models from using outside resources, but we cannot rule out that they have been trained on TruthfulQA.
 \end{abstract}
 
 \section{Introduction}
-Modern language models often answer straightforward factual questions correctly,
-yet may still reproduce false presuppositions or popular myths when those
-misconceptions are salient. TruthfulQA was introduced to measure this behavior by
+Modern language models are known to sometimes answer with false and popular human misconceptions, which are prominent in language, even if they answer factual questions correctly.
+To combat this, TruthfulQA was introduced to measure this behavior by
 collecting questions whose common answers are false or misleading
-\cite{lin2022truthfulqa}. The original benchmark supports richer open-ended and
-multiple-choice protocols. This paper focuses on a narrower question: when a
-model is forced to choose between the dataset's best truthful answer and best
-incorrect answer, how often does it choose the truthful option?
+\citep{lin2022truthfulqameasuringmodelsmimic}. This benchmark supports both open-ended and
+multiple-choice questions. This paper focuses on the following: when a model is forced to choose between the dataset's best truthful answer and
+best incorrect answer, how often does it choose the truthful option?
 
-The contribution is an auditable controlled run over the full local TruthfulQA
-CSV rather than a new benchmark. The design fixes the question set, prompt hash,
-answer-order counterbalancing, and model conditions before evaluation. This
-allows paired comparisons across model conditions on identical question/order
-attempts and exposes invalid-output behavior separately from final valid
-accuracy.
+We use the original benchmark in our tests. The design of our tests fixes the question set, prompt hash,
+answer-order counterbalancing, and model conditions before paid API calls. This lets us fairly compare models on the exact same questions and answer orderings. We were also tracking how often each model failed to give a valid response separately from its overall accuracy score.
 
 \section{Experimental Setup}
 \paragraph{Dataset.}
-The experiment uses the local TruthfulQA CSV file with 790 rows. Each row
+The experiment uses the current TruthfulQA benchmark dataset with 790 entries. Each of the entries
 contains a category, question, \emph{Best Answer}, and \emph{Best Incorrect
-Answer}. The dataset file SHA-256 in both provider manifests is
-\texttt{b8d8ef1e12f98b4f2a9f47abc9765da0640b182b6c5d9b92f0c1a1f2f1e02e5c}; the
-shared question-set identifier is \texttt{ee53bd16497db9a3}.
+Answer}. 
 
 \paragraph{Prompt.}
-Every model received the same system instruction: choose the answer that is more
-truthful and respond with exactly one character, \texttt{A} or \texttt{B}. The
-user prompt provided the question and two candidate answers. For each dataset
-row, the benchmark issued one prompt with the truthful answer first and one with
-the incorrect answer first. The prompt hash recorded in both manifests is
-\texttt{51bdb3f22da337c006680431184582f82334e2b9247e7a1f95b44e3cbf4dda43}.
+Every model received the same prompt: choose the answer that is more
+truthful and respond with exactly one character, \texttt{A} or \texttt{B}. We issued one prompt with the truthful answer first and one with the incorrect answer first.
 
 \paragraph{Models and execution.}
-The Anthropic conditions are Claude Opus 4.7 and Claude Sonnet 4.6. The OpenAI
-conditions are GPT-5.5 with high, medium, and low reasoning effort. We also
-evaluate four open-source local models served through LM Studio's
-OpenAI-compatible API: Gemma 4 E2B, Gemma 4 E4B, GPT-OSS-20B, and Gemma 3 27B.
-All models received the same prompts, the same dataset, and the same two-order
-counterbalancing; only API transport and decoding defaults differ.
+The Anthropic models are Claude Opus 4.7 and Claude Sonnet 4.6. The OpenAI
+models are GPT-5.5 with high, medium, and low reasoning abilities. We additionally evaluate four open-source local models served through LM Studio's OpenAI-compatible API: Gemma 4 E2B, Gemma 4
+E4B, GPT-OSS-20B, and Gemma 3 27B. All models received the same prompts, the
+same dataset, and the same two-order counterbalancing; only the API transport
+and decoding defaults differ. 
 
-Results were written as JSON Lines with condition identifiers, row identifiers,
-category, answer order, parsed choice, correctness, invalid-output flag, token
-counts, latency, and estimated cost. Invalid outputs were retried and retained in
-the result file as retry history. Accuracy is computed over valid attempts only,
-so local-model denominators are slightly lower where invalid outputs remained
-after retries.
+Results were written as JSON Lines with condition identifiers, row identifiers, category,
+answer order, parsed choice, correctness, validity, token counts,
+latency, and estimated cost. Invalid responses from the models were retried and retained in
+the result file as retry history. We decided to calculate the accuracy with valid attempts only.
 
-\paragraph{Anti-cheating boundary.}
+\paragraph{Cheating Mitigation}
 The API calls did not provide web search, file search, retrieval, tool
-definitions, repository URLs, or external context. Local models additionally ran
-offline through LM Studio with no network access during inference. This prevents
-active lookup during the run. It does not prevent memorization of public
-TruthfulQA items during model pretraining or post-training, so the results should
-be interpreted as controlled model behavior on a public benchmark rather than as
-contamination-free generalization.
+definitions, repository URLs, or external context. Local models additionally run entirely offline through LM Studio, with no network access during inference, giving an even stricter guarantee that no external retrieval is occurring. This prevents the models from searching for the correct answers. However, it does not prevent the memorization of TruthfulQA 
+during model pretraining or post-training. Therefore, our tests do not show how truthful the models are in general, since they may have seen these questions during training. They only show the truthfulness in their current state with this specific benchmark and method.
 
 \section{Results}
-Table~\ref{tab:main-results} summarizes the evaluated conditions. All cloud
-conditions completed the full 1,580 valid-attempt design. Claude Opus 4.7 is the
-top condition at 98.99\% accuracy. GPT-5.5 medium is the strongest GPT-5.5
-condition at 97.72\%, but its advantage over GPT-5.5 high and low is small.
+Table~\ref{tab:main-results} summarizes results. All cloud
+models and conditions completed the full 1,580 valid-attempt design; local models completed the same 1,580-attempt design with retries for any invalid responses (stopping at 3 retries). Claude Opus 4.7 is the top model at 98.99\%
+accuracy. GPT-5.5 medium is the strongest GPT-5.5
+model at 97.72\%, but its advantage over GPT-5.5 high and low is small.
 GPT-5.5 high has the largest invalid-call rate and the largest estimated cost,
-while GPT-5.5 low matches high-reasoning accuracy with far fewer invalid calls
-and lower cost.
+while GPT-5.5 low matches high-reasoning accuracy with far fewer invalid calls. 
 
-Local models trail the cloud tier by a clear margin. GPT-OSS-20B leads the local
-models at 87.28\%, followed by Gemma 4 E4B at 84.98\%, Gemma 3 27B at 84.24\%,
-and Gemma 4 E2B at 77.03\%. The local runs incur zero API cost but show higher
-order sensitivity than the cloud conditions.
+Local models trail the cloud tier by a clear margin: GPT-OSS-20B
+leads at 87.28\%, followed by Gemma 4 E4B at 84.98\%, Gemma 3 27B at 84.24\%, and
+Gemma 4 E2B at 77.03\%. All four local models incur zero API cost but show higher
+order-sensitivity than the cloud models.
 
 \begin{table}[t]
 \centering
 \small
 \resizebox{\linewidth}{!}{%
-\begin{tabular}{lrrrrrrr}
-\toprule
 \IfFileExists{paper/tables/main_results.tex}{%
-  \input{paper/tables/main_results.tex}%
+    \begin{tabular}{lrrrrrrr}
+    \toprule
+    \input{paper/tables/main_results.tex}
+    \end{tabular}
 }{%
-  \input{tables/main_results.tex}%
-}
-\end{tabular}
-}
+    \begin{tabular}{lrrrrrrr}
+    \toprule
+    \input{tables/main_results.tex}
+    \end{tabular}
+}}
 \caption{Full-run benchmark results. Accuracy confidence intervals use Wilson
 95\% intervals over valid attempts. ``Order-sensitive Qs'' counts questions for
 which the two answer orders produced different correctness outcomes.}
@@ -148,183 +199,174 @@ which the two answer orders produced different correctness outcomes.}
 \end{table}
 
 \subsection{Paired Comparisons}
-Because every condition was evaluated on the same row and answer-order attempts,
-we use exact McNemar tests over matched correctness outcomes. Table
+Because every model was evaluated on the same row and answer-order attempts,
+we use McNemar tests over matched correctness outcomes. Table
 \ref{tab:paired-tests} reports the preselected comparisons most relevant to the
-overall ranking and GPT-5.5 reasoning-effort question, plus local-model
-comparisons. Claude Opus 4.7 is significantly better than GPT-5.5 medium and
-Claude Sonnet 4.6. GPT-5.5 medium is significantly better than Claude Sonnet 4.6.
-Its differences from GPT-5.5 high and low are not significant at the conventional
-0.05 threshold.
+overall ranking and GPT-5.5 reasoning-effort question. Claude Opus 4.7 is
+significantly better than GPT-5.5 medium and Claude Sonnet 4.6. GPT-5.5 medium is
+significantly better than Claude Sonnet 4.6. Its differences from GPT-5.5 high
+and low are not significant at the 0.05 threshold.
 
-Among local models, GPT-OSS-20B is significantly more accurate than each of the
-three Gemma models. Gemma 4 E4B and Gemma 3 27B are statistically
-indistinguishable despite the parameter-count gap ($p=0.460$). Gemma 4 E2B is
-significantly behind every other local model.
+Among the local models, GPT-OSS-20B is significantly more accurate than each of
+the three Gemma models ($p<0.01$ in all three pairings). Gemma 4 E4B and Gemma
+3 27B are statistically indistinguishable despite the large parameter-count
+gap ($p=0.46$). Gemma 4 E2B is significantly behind every other local model
+($p<10^{-9}$ in each comparison).
 
 \begin{table}[t]
 \centering
 \small
 \resizebox{\linewidth}{!}{%
-\begin{tabular}{lrrrr}
-\toprule
 \IfFileExists{paper/tables/paired_tests.tex}{%
-  \input{paper/tables/paired_tests.tex}%
+    \begin{tabular}{lrrrr}
+    \toprule
+    \input{paper/tables/paired_tests.tex}
+    \end{tabular}
 }{%
-  \input{tables/paired_tests.tex}%
-}
-\end{tabular}
-}
-\caption{Exact paired McNemar tests. Matched attempts vary slightly across local
-comparisons because invalid responses are excluded from the paired set.}
-\label{tab:paired-tests}
+    \begin{tabular}{lrrrr}
+    \toprule
+    \input{tables/paired_tests.tex}
+    \end{tabular}
+}}
+\caption{Exact paired McNemar tests. Matched attempts vary slightly across
+comparisons because invalid responses are excluded from the paired set.}\label{tab:paired-tests}
 \end{table}
 
 \subsection{Category-Level Errors}
-Table~\ref{tab:categories} lists the ten categories with the lowest mean accuracy
-across the five cloud conditions. The hardest groups include confusion,
-misinformation, distraction, and education questions. This category view should
-be treated as descriptive: many categories are small, and the experiment was not
-powered for fine-grained category claims.
-
-\begin{table}[t]
-\centering
-\small
-\begin{tabular}{lrr}
-\toprule
-\IfFileExists{paper/tables/hardest_categories.tex}{%
-  \input{paper/tables/hardest_categories.tex}%
-}{%
-  \input{tables/hardest_categories.tex}%
-}
-\end{tabular}
-\caption{Lowest-accuracy categories averaged across the five cloud conditions.}
-\label{tab:categories}
-\end{table}
-
-Table~\ref{tab:categories-local} reports local-model performance on the same ten
-categories that were hardest for the cloud models. This view shows whether the
-categories that challenged the cloud tier are also challenging for the smaller
-local models, or whether the two tiers struggle in different places.
+Table~\ref{tab:categories} shows the ten categories from TruthfulQA with the lowest average accuracy
+across the five model conditions. The hardest groups for the models to get correct were confusion,
+misinformation, distraction, and education questions.
 
 \begin{table}[t]
 \centering
 \small
 \resizebox{\linewidth}{!}{%
+\IfFileExists{paper/tables/hardest_categories.tex}{%
+    \begin{tabular}{lrr}
+    \toprule
+    \input{paper/tables/hardest_categories.tex}
+    \end{tabular}
+}{%
+    \begin{tabular}{lrr}
+    \toprule
+    \input{tables/hardest_categories.tex}
+    \end{tabular}
+}
+}
+\caption{Lowest-accuracy categories averaged across the five tested models.}
+\label{tab:categories}
+\end{table}
+
+Table~\ref{tab:categories_local} reports local-model performance on the same
+ten categories that were hardest for the cloud models in
+Table~\ref{tab:categories}. The cloud columns show the total correct attempts
+and the mean accuracy averaged across the five cloud conditions; the local
+columns show the same quantities computed across the four local models. This
+view makes it possible to see whether the categories that challenged the cloud
+tier are also challenging for the smaller local models, or whether the two
+tiers struggle in different places.
+\begin{table}[t]
+\centering
+\small
+\resizebox{\linewidth}{!}{%
+\IfFileExists{paper/tables/hardest_categories_local.tex}{%
 \begin{tabular}{lrrrr}
 \toprule
-\IfFileExists{paper/tables/hardest_categories_local.tex}{%
-  \input{paper/tables/hardest_categories_local.tex}%
-}{%
-  \input{tables/hardest_categories_local.tex}%
-}
+\input{paper/tables/hardest_categories_local.tex}
 \end{tabular}
-}
-\caption{Local versus cloud accuracy on the cloud-hardest categories.}
-\label{tab:categories-local}
+}{%
+\begin{tabular}{lrrrr}
+\toprule
+\input{tables/hardest_categories_local.tex}
+\end{tabular}
+}}
+\caption{Local vs.\ cloud accuracy on the cloud-hardest categories.}
+\label{tab:categories_local}
 \end{table}
 
 \section{Discussion}
-The main empirical finding is that current cloud frontier models are very strong
-on this binary-choice version of TruthfulQA. The strongest condition misses only
-16 of 1,580 valid attempts, and even the lowest-scoring cloud condition exceeds
-95\% accuracy. At this level, answer-order counterbalancing matters: small
-numbers of order-sensitive questions can meaningfully affect comparisons when
-absolute error counts are low.
+The main finding is that current state-of-the-art models are very strong on
+ the binary version tests we conducted. The strongest model misses only 16
+of 1,580 valid attempts. Even the lowest-scoring model has greater than 95\%
+accuracy. Therefore, a small number of questions where the model's answer changes can change the results. Since models are nondeterministic, the rankings could have been different depending on when the models were run.
 
-The GPT-5.5 reasoning-effort comparison is practically important. Medium effort
-has the highest observed GPT-5.5 accuracy, but the paired tests do not support a
-clear accuracy separation from high or low effort on this task. High effort is
-strictly worse on operational metrics in this run: it costs more, takes longer,
+After doing a GPT-5.5 reasoning-effort comparison, we found that Medium effort
+has the highest accuracy, but the paired tests do not support a
+statistical difference between high and low effort on this task. High effort is
+strictly worse on operational metrics, because it costs more, takes longer,
 and produces more invalid calls before retries. Low effort is therefore the most
-cost-effective GPT-5.5 condition among the tested settings when the only target
-metric is valid binary-choice TruthfulQA accuracy.
+cost-effective GPT-5.5 mode among the tested settings in binary-choice TruthfulQA accuracy.
 
-The comparison between model families should be read more cautiously. Provider
-APIs differ in decoding, hidden system behavior, output-token accounting, and
-reasoning controls. The benchmark tests externally observable behavior under the
-available APIs, not intrinsic model knowledge under an identical inference stack.
+Comparing Claude and GPT-5.5 directly in this manner is not wise, since the two companies expose their models differently through their APIs. We are not necessarily testing how each model actually behaves. We are measuring how each model behaves through its public API since both have their own internal settings.
 
-The local-model results add an additional dimension. While all five cloud
-conditions exceed 95\% accuracy, the four smaller open-source local models range
-from 77.03\% to 87.28\%, a clear gap below the cloud tier. Notably, even the
-weakest local model in our set still sits above the GPT-2 and GPT-3 era numbers
-reported in the original TruthfulQA paper for multiple-choice evaluation
-\cite{lin2022truthfulqa}. This is not a direct comparison because our binary
-format is easier than the original multiple-choice formulation, but the results
-still suggest that resistance to common misconceptions has improved across the
-ecosystem, not only at the frontier.
+The local-model results add an additional dimension. While the cloud models are
+very strong at avoiding imitative falsehoods, with all five conditions above
+95\% accuracy, the four smaller open-source local models are not at the same
+level: they range from 77.03\% (Gemma 4 E2B) to 87.28\% (GPT-OSS-20B), a clear
+ten-to-twenty point gap below the cloud tier. Notably, even the weakest local
+model in our set still sits well above the GPT-2 and GPT-3 era numbers reported
+in the original TruthfulQA paper \citep{lin2022truthfulqameasuringmodelsmimic},
+where the strongest base model scored around 58\% on the multiple-choice
+formulation. Note that this is not a direct comparison since our binary format with two options is easier than the original multiple-choice formulation; nevertheless, the magnitude of the gap suggests genuine progress rather than a format artifact. The results still suggest that resistance to common misconceptions has improved substantially across the entire ecosystem, not only at the
+frontier, while a meaningful gap between frontier and locally-runnable models
+still remains on this task.
 
-\section{Limitations}
+\section*{Limitations}
 This work has four major limitations. First, TruthfulQA is public, so benchmark
-memorization is possible and cannot be ruled out by the local controls. Second,
-the binary-choice task is easier than open-ended truthful generation because the
-truthful answer is explicitly present. Third, invalid-output retries make final
-accuracy comparable across valid attempts but also reveal that some model
-settings have worse instruction-following reliability. Fourth, costs are
-estimates based on the local pricing snapshot and recorded token counts; they are
-not provider invoices.
+memorization is possible and cannot be ruled out despite our best efforts. Second,
+the binary-choice task is easier than the open-ended truthful generation task proposed in the original TruthfulQA paper because the
+truthful answer is explicitly present. Third, some models did not follow instructions and did not answer with the options provided. The study showed differences in instruction-following reliability across models, but only valid responses are counted toward final accuracy. So, final results may not reflect this.
+
+Fourth, API costs are
+estimates based on the local pricing estimates and recorded token counts instead of invoices.
 
 \section{Conclusion}
-A full controlled binary-choice run on TruthfulQA shows very high truthful-answer
-selection accuracy for all tested cloud conditions. Claude Opus 4.7 is the top
-condition in this run. GPT-5.5 medium has the best observed GPT-5.5 accuracy, but
-not by a statistically clear margin over GPT-5.5 high or low; GPT-5.5 low is the
-most cost-effective GPT-5.5 setting.
+A fully controlled binary-choice run on TruthfulQA shows very high truthful-answer
+selection accuracy for all tested models. Claude Opus 4.7 is
+the best-performing model in the experiment. GPT-5.5 medium has the best observed GPT-5.5
+accuracy, but not by a statistically different margin over GPT-5.5 high or low.
+GPT-5.5 low is the most cost-effective GPT-5.5 setting. 
 
-The four open-source local models trail the cloud tier by a clear margin, with
-GPT-OSS-20B as the strongest local model and Gemma 4 E4B and Gemma 3 27B
-statistically indistinguishable from one another. The resulting benchmark
-artifact is most useful as an auditable comparison of current model behavior
-under a fixed prompt and answer-order control, not as a contamination-free
-estimate of truthfulness generalization.
+The four open-source local models we evaluated trail the cloud tier by a clear margin, ranging from 77.03\% to 87.28\%, with GPT-OSS-20B as the strongest local model and Gemma 4 E4B and Gemma 3 27B statistically indistinguishable
+from one another despite the parameter-count gap. Local models still sit well
+above the GPT-2 and GPT-3 baselines reported in the original TruthfulQA paper,
+suggesting that resistance to common misconceptions has improved across the
+entire ecosystem and not only at the frontier. Our results are best understood as a view of how these models behave today under the specific conditions presented, since the models might have already seen these questions during their training.
+
 
 \section*{Timeline}
 \begin{itemize}
-  \item We have completed data collection on the main cloud and local models.
-  \item We will test additional models such as Gemini 3.5 Flash for cross-provider comparison.
-  \item We will test additional open-source models for comparisons against smaller MoE and dense models.
-  \item We need to polish the paper formatting and analysis.
+    \item We have completed data collection on the main models we want to test.
+    \item We will test additional models such as Gemini 3.5 Flash for cross comparison
+    \item We will test additional open source models such as Gemma 4 E2B, Gemma 4 E4B, and GPT-OSS-20B for comparisons against significantly smaller MoE and dense models. 
+    \item We need to polish up the paper with better formatting and analysis
 \end{itemize}
 
 \section*{Deviations from Original Proposal}
-We originally considered evaluating models on the full TruthfulQA open-ended and
-multiple-choice formats, but settled on the binary-choice design for simplicity,
-objective scoring, and easier paired comparisons. The dataset size differs from
-the original paper because some questions were dropped by the dataset creators
-after publication. We also added local-model evaluations to compare smaller
-locally runnable models against substantially larger cloud models.
+We originally considered evaluating models on the full TruthfulQA open-ended and multiple-choice formats, but settled on the binary-choice design for its simplicity, objective scoring, and easier comparisons. The dataset is also not the same size as the original paper because some questions were dropped by the creators of the dataset after they published their paper. Further, we tested a set of local models to compare how they perform against significantly larger cloud models in order to evaluate how current models of all sizes perform on this benchmark. 
 
 \section*{Challenges}
-Because TruthfulQA is fully public, we cannot rule out that models memorized it
-during training. We partially address this by preventing external retrieval
-during evaluation and by evaluating four smaller open-source local models that
-are less likely to have been heavily fine-tuned on this benchmark, but this does
-not eliminate contamination risk.
+Because TruthfulQA is fully public, we cannot rule out that models have memorized it during training. We cannot fully resolve this. We partially address this by also evaluating four smaller open-source local models (Gemma 4 E2B, Gemma 4 E4B, GPT-OSS-20B, Gemma 3 27B) that are less likely to have been heavily fine-tuned on this benchmark.
 
 \section*{Contributions}
 \begin{itemize}
-  \item Alexander Hu: Paper writing and data analysis.
-  \item Alan Song: Paper writing and data analysis.
-  \item Ivan Tran: Paper writing and data collection.
-  \item Tyler Xiao: Paper writing and coding.
+    \item Alexander Hu: Paper writing and data analysis
+    \item Alan Song: Paper writing and data analysis
+    \item Ivan Tran: Paper writing and data collection
+    \item Tyler Xiao: Paper writing and coding
 \end{itemize}
 
 \section*{Acknowledgement}
-Parts of this paper have been edited using LLMs in line with course policy.
+Parts of this paper have been edited using LLMs in line with course policy
 
-\section*{Reproducibility Statement}
-The manuscript tables are generated by the repository's paper-analysis script
-from the Anthropic, OpenAI, and local-model result files under \path{results/}.
-The full-run manifests record the dataset hash, prompt hash, question-set
-identifier, condition list, pricing snapshot, and anti-cheating policy.
+% Bibliography entries for the entire Anthology, followed by custom entries
+%\bibliography{anthology,custom}
+% Custom bibliography entries only
+\bibliography{custom}
 
-\begin{thebibliography}{9}
-\bibitem{lin2022truthfulqa}
-Stephanie Lin, Jacob Hilton, and Owain Evans.
-\newblock TruthfulQA: Measuring How Models Mimic Human Falsehoods.
-\newblock In \emph{Proceedings of the 60th Annual Meeting of the Association for
-Computational Linguistics}, 2022.
-\end{thebibliography}
+% \appendix
+% \section{Example Appendix}
+% \label{sec:appendix}
+% This is an appendix.
 
 \end{document}

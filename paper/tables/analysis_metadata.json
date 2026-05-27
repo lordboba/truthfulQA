@@ -1,7 +1,76 @@
 {
-  "total_api_rows": 8310,
-  "valid_attempts": 7900,
+  "total_result_rows": 14656,
+  "expected_attempts": 14220,
+  "valid_attempts": 14207,
   "questions": 790,
   "orders_per_question": 2,
-  "conditions": 5
+  "conditions": 9,
+  "cloud_conditions": 5,
+  "local_conditions": 4,
+  "condition_attempts": {
+    "anthropic_claude-opus-4-7": 1580,
+    "openai_gpt-5.5_medium": 1580,
+    "openai_gpt-5.5_high": 1580,
+    "openai_gpt-5.5_low": 1580,
+    "anthropic_claude-sonnet-4-6": 1580,
+    "local_openai_gpt-oss-20b": 1580,
+    "local_google_gemma-4-e4b": 1580,
+    "local_google_gemma-3-27b": 1580,
+    "local_google_gemma-4-e2b": 1580
+  },
+  "configured_conditions": [
+    {
+      "condition_id": "anthropic_claude-opus-4-7",
+      "label": "Claude Opus 4.7",
+      "group": "cloud"
+    },
+    {
+      "condition_id": "openai_gpt-5.5_medium",
+      "label": "GPT-5.5 medium",
+      "group": "cloud"
+    },
+    {
+      "condition_id": "openai_gpt-5.5_high",
+      "label": "GPT-5.5 high",
+      "group": "cloud"
+    },
+    {
+      "condition_id": "openai_gpt-5.5_low",
+      "label": "GPT-5.5 low",
+      "group": "cloud"
+    },
+    {
+      "condition_id": "anthropic_claude-sonnet-4-6",
+      "label": "Claude Sonnet 4.6",
+      "group": "cloud"
+    },
+    {
+      "condition_id": "local_openai_gpt-oss-20b",
+      "label": "openai/gpt-oss-20b (local)",
+      "group": "local"
+    },
+    {
+      "condition_id": "local_google_gemma-4-e4b",
+      "label": "google/gemma-4-e4b (local)",
+      "group": "local"
+    },
+    {
+      "condition_id": "local_google_gemma-3-27b",
+      "label": "google/gemma-3-27b (local)",
+      "group": "local"
+    },
+    {
+      "condition_id": "local_google_gemma-4-e2b",
+      "label": "google/gemma-4-e2b (local)",
+      "group": "local"
+    }
+  ],
+  "result_sources": [
+    "results/anthropic_full.jsonl",
+    "results/openai_full.jsonl",
+    "results/local_full_openai_gpt-oss-20b.jsonl",
+    "results/local_full_google_gemma-4-e4b.jsonl",
+    "results/local_full_google_gemma-3-27b.jsonl",
+    "results/local_full_google_gemma-4-e2b.jsonl"
+  ]
 }
